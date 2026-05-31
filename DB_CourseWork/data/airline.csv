@@ -1,0 +1,11 @@
+iata_code,airline_name,country_code,is_active
+W6,Wizz Air,HU,True
+LH,Lufthansa,DE,True
+AF,Air France,FR,True
+LO,LOT Polish Airlines,PL,True
+KL,KLM Royal Dutch Airlines,NL,True
+BA,British Airways,GB,True
+IB,Iberia,ES,True
+AZ,ITA Airways,IT,True
+BT,airBaltic,LV,True
+OV,SAS Scandinavian Airlines,EE,True

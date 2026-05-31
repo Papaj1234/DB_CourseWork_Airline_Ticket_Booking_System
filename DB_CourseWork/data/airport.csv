@@ -1,0 +1,11 @@
+iata_code,airport_name,city_code,timezone
+VNO,Vilnius International Airport,VNO,Europe/Vilnius
+BER,Berlin Brandenburg Airport,BER,Europe/Berlin
+CDG,Charles de Gaulle Airport,PAR,Europe/Paris
+WAW,Warsaw Chopin Airport,WAW,Europe/Warsaw
+AMS,Amsterdam Airport Schiphol,AMS,Europe/Amsterdam
+LHR,London Heathrow Airport,LON,Europe/London
+MAD,Adolfo Suarez Madrid-Barajas,MAD,Europe/Madrid
+FCO,Leonardo da Vinci Airport,ROM,Europe/Rome
+RIX,Riga International Airport,RIX,Europe/Riga
+TLL,Lennart Meri Tallinn Airport,TLL,Europe/Tallinn

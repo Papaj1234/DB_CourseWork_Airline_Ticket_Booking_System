@@ -1,0 +1,11 @@
+passport_number,first_name,last_name,date_of_birth,nationality,email,phone
+LT1234567,Jonas,Jonaitis,1990-03-15,LT,jonas.jonaitis@email.lt,+37061234567
+LT2345678,Marta,Petraite,1985-07-22,LT,marta.petraite@email.lt,+37067654321
+DE3456789,Hans,Muller,1978-11-08,DE,hans.mueller@email.de,+4915112345678
+FR4567890,Sophie,Dubois,1995-02-14,FR,sophie.dubois@email.fr,+33612345678
+PL5678901,Piotr,Kowalski,1988-09-30,PL,piotr.kowalski@email.pl,+48512345678
+NL6789012,Emma,van den Berg,1992-04-05,NL,emma.vandenberg@email.nl,+31612345678
+GB7890123,James,Smith,1982-12-19,GB,james.smith@email.co.uk,+447911123456
+LV8901234,Andris,Berzins,1975-06-25,LV,andris.berzins@email.lv,+37126123456
+EE9012345,Tiit,Tamm,2000-01-10,EE,tiit.tamm@email.ee,+37251234567
+LT0123456,Greta,Kazlauskaite,1997-08-03,LT,greta.kazlauskaite@email.lt,+37069876543

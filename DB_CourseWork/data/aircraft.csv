@@ -1,0 +1,11 @@
+tail_number,model,total_seats,economy_seats,business_seats,airline_code
+LY-KLJ,Airbus A320,180,168,12,W6
+LY-WEU,Airbus A321,220,208,12,W6
+D-AIWS,Airbus A320,180,156,24,LH
+D-ABEC,Boeing 737-800,189,165,24,LH
+F-GKXU,Airbus A320,180,156,24,AF
+F-HBNI,Airbus A321,220,196,24,AF
+SP-LRE,Boeing 737-800,189,165,24,LO
+SP-LWB,Embraer E195,122,110,12,LO
+PH-BXA,Boeing 737-800,189,165,24,KL
+PH-EZA,Airbus A320,180,156,24,KL
