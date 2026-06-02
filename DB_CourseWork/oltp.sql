@@ -140,3 +140,4 @@ CREATE INDEX idx_booking_flight ON booking(flight_number, scheduled_date);
 CREATE INDEX idx_ticket_booking ON ticket(booking_ref);
 CREATE INDEX idx_ticket_status ON ticket(ticket_status);
 CREATE INDEX idx_ticket_service_service ON ticket_service(service_code);
+CREATE INDEX idx_flight_date ON flight(scheduled_date);
