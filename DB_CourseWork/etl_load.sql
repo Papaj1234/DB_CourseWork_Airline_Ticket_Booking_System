@@ -87,6 +87,12 @@ WHERE NOT EXISTS (
 );
 
 
+INSERT INTO dim_service (service_code, service_name, category, base_price)
+SELECT service_code, service_name, category, base_price
+FROM ft_service
+ON CONFLICT (service_code) DO NOTHING;
+
+
 INSERT INTO fact_ticket_sales (
 	time_id, passenger_key, route_key, airline_key, aircraft_key,
 	flight_number, booking_ref, ticket_number, cabin_class, price, baggage_kg,
@@ -143,17 +149,33 @@ GROUP BY
 ON CONFLICT (flight_number, time_id) DO NOTHING;
 
 
-INSERT INTO bridge_booking_ticket (booking_ref, ticket_number, passenger_key, price, cabin_class)
+INSERT INTO bridge_ticket_service (ticket_number, service_key, quantity, price_paid)
 SELECT
-	t.booking_ref,
-	t.ticket_number,
-	dp.passenger_key,
-	t.price,
-	t.cabin_class
-FROM ft_ticket t
+    ts.ticket_number,
+    ds.service_key,
+    ts.quantity,
+    ts.price_paid
+FROM ft_ticket_service ts
+JOIN dim_service ds ON ds.service_code = ts.service_code
+ON CONFLICT (ticket_number, service_key) DO NOTHING;
+
+
+
+INSERT INTO fact_ticket_service (ticket_number, service_key, time_id, passenger_key, quantity, price_paid)
+SELECT
+    bts.ticket_number,
+    bts.service_key,
+    TO_CHAR(f.scheduled_date, 'YYYYMMDD')::INTEGER,
+    dp.passenger_key,
+    bts.quantity,
+    bts.price_paid
+FROM bridge_ticket_service bts
+JOIN ft_ticket t ON t.ticket_number = bts.ticket_number
 JOIN ft_booking b ON b.booking_ref = t.booking_ref
+JOIN ft_flight f ON f.flight_number = b.flight_number AND f.scheduled_date = b.scheduled_date
 JOIN dim_passenger dp ON dp.passport_number = b.passenger_passport AND dp.is_current = TRUE
 WHERE NOT EXISTS (
-	SELECT 1 FROM bridge_booking_ticket bbt
-	WHERE bbt.ticket_number = t.ticket_number
+    SELECT 1 FROM fact_ticket_service fsv
+    WHERE fsv.ticket_number = bts.ticket_number
+    AND fsv.service_key = bts.service_key
 );

@@ -1,24 +1,29 @@
 DROP SERVER IF EXISTS oltp_server CASCADE;
 CREATE EXTENSION IF NOT EXISTS postgres_fdw;
 
+
 CREATE SERVER oltp_server
 	FOREIGN DATA WRAPPER postgres_fdw
 	OPTIONS (host '127.0.0.1', port '1166', dbname 'postgres');
 
+
 CREATE USER MAPPING FOR postgres
 	SERVER oltp_server
 	OPTIONS (user 'postgres', password 'postgres');
+
 
 CREATE FOREIGN TABLE ft_country (
 	country_code CHAR(2),
 	country_name VARCHAR(100)
 ) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'country');
 
+
 CREATE FOREIGN TABLE ft_city (
 	city_code CHAR(3),
 	city_name VARCHAR(100),
 	country_code CHAR(2)
 ) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'city');
+
 
 CREATE FOREIGN TABLE ft_airport (
 	iata_code CHAR(3),
@@ -27,12 +32,14 @@ CREATE FOREIGN TABLE ft_airport (
 	timezone VARCHAR(50)
 ) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'airport');
 
+
 CREATE FOREIGN TABLE ft_airline (
 	iata_code CHAR(2),
 	airline_name VARCHAR(150),
 	country_code CHAR(2),
 	is_active BOOLEAN
 ) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'airline');
+
 
 CREATE FOREIGN TABLE ft_aircraft (
 	tail_number VARCHAR(10),
@@ -44,12 +51,14 @@ CREATE FOREIGN TABLE ft_aircraft (
 	airline_code CHAR(2)
 ) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'aircraft');
 
+
 CREATE FOREIGN TABLE ft_route (
 	route_code VARCHAR(10),
 	origin_airport CHAR(3),
 	destination_airport CHAR(3),
 	distance_km SMALLINT
 ) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'route');
+
 
 CREATE FOREIGN TABLE ft_flight (
 	flight_number VARCHAR(8),
@@ -63,6 +72,7 @@ CREATE FOREIGN TABLE ft_flight (
 	delay_minutes SMALLINT
 ) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'flight');
 
+
 CREATE FOREIGN TABLE ft_passenger (
 	passport_number VARCHAR(20),
 	first_name VARCHAR(80),
@@ -73,6 +83,7 @@ CREATE FOREIGN TABLE ft_passenger (
 	phone VARCHAR(20),
 	created_at TIMESTAMPTZ
 ) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'passenger');
+
 
 CREATE FOREIGN TABLE ft_booking (
 	booking_ref CHAR(6),
@@ -86,6 +97,7 @@ CREATE FOREIGN TABLE ft_booking (
 	payment_method VARCHAR(20)
 ) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'booking');
 
+
 CREATE FOREIGN TABLE ft_ticket (
 	ticket_number VARCHAR(14),
 	booking_ref CHAR(6),
@@ -96,3 +108,19 @@ CREATE FOREIGN TABLE ft_ticket (
 	baggage_kg SMALLINT,
 	ticket_status VARCHAR(20)
 ) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'ticket');
+
+
+CREATE FOREIGN TABLE ft_service (
+	service_code VARCHAR(10),
+	service_name VARCHAR(100),
+	category VARCHAR(30),
+	base_price NUMERIC(10,2)
+) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'service');
+
+
+CREATE FOREIGN TABLE ft_ticket_service (
+	ticket_number VARCHAR(14),
+	service_code VARCHAR(10),
+	quantity SMALLINT,
+	price_paid NUMERIC(10,2)
+) SERVER oltp_server OPTIONS (schema_name 'public', table_name 'ticket_service');

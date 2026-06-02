@@ -1,3 +1,6 @@
+DROP TABLE IF EXISTS fact_ticket_service CASCADE;
+DROP TABLE IF EXISTS bridge_ticket_service CASCADE;
+DROP TABLE IF EXISTS dim_service CASCADE;
 DROP TABLE IF EXISTS fact_ticket_sales CASCADE;
 DROP TABLE IF EXISTS fact_flight_performance CASCADE;
 DROP TABLE IF EXISTS bridge_booking_ticket CASCADE;
@@ -10,11 +13,13 @@ DROP TABLE IF EXISTS dim_airport CASCADE;
 DROP TABLE IF EXISTS dim_city CASCADE;
 DROP TABLE IF EXISTS dim_country CASCADE;
 
+
 CREATE TABLE dim_country (
 	country_key SERIAL PRIMARY KEY,
 	country_code CHAR(2) NOT NULL UNIQUE,
 	country_name VARCHAR(100) NOT NULL
 );
+
 
 CREATE TABLE dim_city (
 	city_key SERIAL PRIMARY KEY,
@@ -23,12 +28,14 @@ CREATE TABLE dim_city (
 	country_key INTEGER NOT NULL REFERENCES dim_country(country_key)
 );
 
+
 CREATE TABLE dim_airport (
 	airport_key SERIAL PRIMARY KEY,
 	iata_code CHAR(3) NOT NULL UNIQUE,
 	airport_name VARCHAR(150) NOT NULL,
 	city_key INTEGER NOT NULL REFERENCES dim_city(city_key)
 );
+
 
 CREATE TABLE dim_route (
 	route_key SERIAL PRIMARY KEY,
@@ -39,12 +46,14 @@ CREATE TABLE dim_route (
 	CONSTRAINT chk_route_diff_airports CHECK (origin_airport_key <> destination_airport_key)
 );
 
+
 CREATE TABLE dim_airline (
 	airline_key SERIAL PRIMARY KEY,
 	iata_code CHAR(2) NOT NULL UNIQUE,
 	airline_name VARCHAR(150) NOT NULL,
 	country_key INTEGER NOT NULL REFERENCES dim_country(country_key)
 );
+
 
 CREATE TABLE dim_aircraft (
 	aircraft_key SERIAL PRIMARY KEY,
@@ -56,6 +65,7 @@ CREATE TABLE dim_aircraft (
 	first_seats SMALLINT NOT NULL DEFAULT 0,
 	CONSTRAINT chk_aircraft_seats CHECK (economy_seats + business_seats + first_seats <= total_seats)
 );
+
 
 CREATE TABLE dim_time (
 	time_id INTEGER PRIMARY KEY,
@@ -69,6 +79,7 @@ CREATE TABLE dim_time (
 	is_weekend BOOLEAN NOT NULL
 );
 
+
 CREATE TABLE dim_passenger (
 	passenger_key SERIAL PRIMARY KEY,
 	passport_number VARCHAR(20) NOT NULL,
@@ -81,6 +92,16 @@ CREATE TABLE dim_passenger (
 	valid_to DATE,
 	is_current BOOLEAN NOT NULL DEFAULT TRUE
 );
+
+
+CREATE TABLE dim_service (
+	service_key SERIAL PRIMARY KEY,
+	service_code VARCHAR(10) NOT NULL UNIQUE,
+	service_name VARCHAR(100) NOT NULL,
+	category VARCHAR(30) NOT NULL,
+	base_price NUMERIC(10,2) NOT NULL
+);
+
 
 CREATE TABLE fact_ticket_sales (
 	ticket_sales_id SERIAL PRIMARY KEY,
@@ -106,6 +127,7 @@ CREATE TABLE fact_ticket_sales (
 	CONSTRAINT chk_fts_baggage CHECK (baggage_kg >= 0)
 );
 
+
 CREATE TABLE fact_flight_performance (
 	flight_perf_id SERIAL PRIMARY KEY,
 	time_id INTEGER NOT NULL REFERENCES dim_time(time_id),
@@ -124,13 +146,22 @@ CREATE TABLE fact_flight_performance (
 	CONSTRAINT chk_ffp_revenue CHECK (total_revenue >= 0)
 );
 
-CREATE TABLE bridge_booking_ticket (
-	bridge_id SERIAL PRIMARY KEY,
-	booking_ref CHAR(6) NOT NULL,
-	ticket_number VARCHAR(14) NOT NULL,
-	passenger_key INTEGER NOT NULL REFERENCES dim_passenger(passenger_key),
-	price NUMERIC(10,2) NOT NULL,
-	cabin_class VARCHAR(10) NOT NULL,
-	CONSTRAINT chk_bridge_cabin CHECK (cabin_class IN ('ECONOMY','BUSINESS','FIRST')),
-	CONSTRAINT chk_bridge_price CHECK (price >= 0)
+
+CREATE TABLE bridge_ticket_service (
+    ticket_number   VARCHAR(14) NOT NULL REFERENCES fact_ticket_sales(ticket_number),
+    service_key     INTEGER     NOT NULL REFERENCES dim_service(service_key),
+    quantity        SMALLINT    NOT NULL CHECK (quantity > 0),
+    price_paid      NUMERIC(10,2) NOT NULL CHECK (price_paid >= 0),
+    PRIMARY KEY (ticket_number, service_key)
+);
+
+
+CREATE TABLE fact_ticket_service (
+    ticket_service_id SERIAL PRIMARY KEY,
+    time_id           INTEGER        NOT NULL REFERENCES dim_time(time_id),
+    passenger_key     INTEGER        NOT NULL REFERENCES dim_passenger(passenger_key),
+    service_key       INTEGER        NOT NULL REFERENCES dim_service(service_key),
+    ticket_number     VARCHAR(14)    NOT NULL REFERENCES fact_ticket_sales(ticket_number),
+    quantity          SMALLINT       NOT NULL CHECK (quantity > 0),
+    price_paid        NUMERIC(10,2)  NOT NULL CHECK (price_paid >= 0)
 );

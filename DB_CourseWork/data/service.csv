@@ -1,0 +1,9 @@
+service_code,service_name,category,base_price
+EXTRABAG,Extra Baggage 10kg,BAGGAGE,30.00
+MEAL,Hot Meal,MEAL,15.00
+SEATSEL,Seat Selection,SEAT,12.00
+PRIORITY,Priority Boarding,PRIORITY,8.00
+INSURANCE,Travel Insurance,INSURANCE,25.00
+LOUNGE,Lounge Access,OTHER,40.00
+WIFI,Onboard WiFi,OTHER,10.00
+PETCABIN,Pet in Cabin,OTHER,50.00
