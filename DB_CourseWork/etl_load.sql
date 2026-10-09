@@ -1,5 +1,43 @@
 BEGIN;
 
+
+CREATE TEMP TABLE ref_value (domain TEXT, value TEXT) ON COMMIT DROP;
+INSERT INTO ref_value VALUES
+	('ticket_status', 'ISSUED'), ('ticket_status', 'CHECKED_IN'), ('ticket_status', 'BOARDED'),
+	('ticket_status', 'USED'),   ('ticket_status', 'CANCELLED'),
+	('cabin_class', 'ECONOMY'),  ('cabin_class', 'BUSINESS'),    ('cabin_class', 'FIRST');
+
+
+CREATE TEMP TABLE stg_passenger ON COMMIT DROP AS
+SELECT TRIM(passport_number) AS passport_number, TRIM(first_name) AS first_name, TRIM(last_name) AS last_name,
+       UPPER(TRIM(nationality)) AS nationality, LOWER(TRIM(email)) AS email, TRIM(phone) AS phone
+FROM ft_passenger;
+
+CREATE TEMP TABLE stg_ticket ON COMMIT DROP AS
+SELECT TRIM(ticket_number) AS ticket_number, booking_ref, UPPER(TRIM(cabin_class)) AS cabin_class,
+       price, baggage_kg, UPPER(TRIM(ticket_status)) AS ticket_status
+FROM ft_ticket;
+
+
+CREATE TEMP TABLE etl_reject (tbl TEXT, record_key TEXT, reason TEXT) ON COMMIT DROP;
+
+WITH bad AS (
+	DELETE FROM stg_passenger p
+	WHERE p.email NOT LIKE '%_@_%.__%'
+	   OR p.nationality NOT IN (SELECT country_code FROM ft_country)
+	RETURNING p.passport_number)
+INSERT INTO etl_reject SELECT 'passenger', passport_number, 'invalid email or unknown nationality' FROM bad;
+
+WITH bad AS (
+	DELETE FROM stg_ticket t
+	WHERE t.price < 0 OR t.baggage_kg < 0
+	   OR t.ticket_status NOT IN (SELECT value FROM ref_value WHERE domain = 'ticket_status')
+	   OR t.cabin_class   NOT IN (SELECT value FROM ref_value WHERE domain = 'cabin_class')
+	RETURNING t.ticket_number)
+INSERT INTO etl_reject SELECT 'ticket', ticket_number, 'negative price/baggage or unknown status/class' FROM bad;
+
+
+
 INSERT INTO dim_country (country_code, country_name)
 SELECT country_code, country_name
 FROM ft_country
@@ -79,7 +117,6 @@ ON CONFLICT (tail_number) DO UPDATE
 	      IS DISTINCT FROM (EXCLUDED.model, EXCLUDED.total_seats, EXCLUDED.economy_seats, EXCLUDED.business_seats);
 
 
-
 INSERT INTO dim_time (time_id, full_date, day_of_week, day_name, month_num, month_name, quarter, year, is_weekend)
 SELECT DISTINCT
 	TO_CHAR(scheduled_date, 'YYYYMMDD')::INTEGER,
@@ -98,7 +135,7 @@ ON CONFLICT (time_id) DO NOTHING;
 UPDATE dim_passenger dp
 SET valid_to   = CURRENT_DATE,
     is_current = FALSE
-FROM ft_passenger p
+FROM stg_passenger p
 WHERE dp.passport_number = p.passport_number
   AND dp.is_current = TRUE
   AND (dp.first_name, dp.last_name, dp.nationality, dp.email, dp.phone)
@@ -116,7 +153,7 @@ SELECT
 	CURRENT_DATE,
 	NULL,
 	TRUE
-FROM ft_passenger p
+FROM stg_passenger p
 WHERE NOT EXISTS (
 	SELECT 1 FROM dim_passenger dp
 	WHERE dp.passport_number = p.passport_number
@@ -156,7 +193,7 @@ SELECT
 	t.ticket_status,
 	b.payment_method,
 	b.payment_status
-FROM ft_ticket t
+FROM stg_ticket t
 JOIN ft_booking b ON b.booking_ref = t.booking_ref
 JOIN ft_flight f ON f.flight_number = b.flight_number AND f.scheduled_date = b.scheduled_date
 JOIN dim_passenger dp ON dp.passport_number = b.passenger_passport AND dp.is_current = TRUE
@@ -206,7 +243,7 @@ JOIN dim_route dr ON dr.route_code = f.route_code
 JOIN dim_airline da ON da.iata_code = f.airline_code
 JOIN dim_aircraft dac ON dac.tail_number = f.tail_number
 LEFT JOIN ft_booking b ON b.flight_number = f.flight_number AND b.scheduled_date = f.scheduled_date
-LEFT JOIN ft_ticket t ON t.booking_ref = b.booking_ref AND t.ticket_status != 'CANCELLED'
+LEFT JOIN stg_ticket t ON t.booking_ref = b.booking_ref AND t.ticket_status != 'CANCELLED'
 GROUP BY
 	f.scheduled_date, f.flight_number, f.status, f.delay_minutes,
 	dr.route_key, da.airline_key, dac.aircraft_key
@@ -248,7 +285,7 @@ SET time_id    = TO_CHAR(f.scheduled_date, 'YYYYMMDD')::INTEGER,
     quantity   = bts.quantity,
     price_paid = bts.price_paid
 FROM bridge_ticket_service bts
-JOIN ft_ticket t ON t.ticket_number = bts.ticket_number
+JOIN stg_ticket t ON t.ticket_number = bts.ticket_number
 JOIN ft_booking b ON b.booking_ref = t.booking_ref
 JOIN ft_flight f ON f.flight_number = b.flight_number AND f.scheduled_date = b.scheduled_date
 WHERE fsv.ticket_number = bts.ticket_number
@@ -266,7 +303,7 @@ SELECT
     bts.quantity,
     bts.price_paid
 FROM bridge_ticket_service bts
-JOIN ft_ticket t ON t.ticket_number = bts.ticket_number
+JOIN stg_ticket t ON t.ticket_number = bts.ticket_number
 JOIN ft_booking b ON b.booking_ref = t.booking_ref
 JOIN ft_flight f ON f.flight_number = b.flight_number AND f.scheduled_date = b.scheduled_date
 JOIN dim_passenger dp ON dp.passport_number = b.passenger_passport AND dp.is_current = TRUE
@@ -275,5 +312,9 @@ WHERE NOT EXISTS (
     WHERE fsv.ticket_number = bts.ticket_number
     AND fsv.service_key = bts.service_key
 );
+
+
+
+SELECT tbl AS "table", record_key, reason FROM etl_reject ORDER BY tbl, record_key;
 
 COMMIT;
