@@ -1,7 +1,11 @@
+BEGIN;
+
 INSERT INTO dim_country (country_code, country_name)
 SELECT country_code, country_name
 FROM ft_country
-ON CONFLICT (country_code) DO NOTHING;
+ON CONFLICT (country_code) DO UPDATE
+	SET country_name = EXCLUDED.country_name
+	WHERE dim_country.country_name IS DISTINCT FROM EXCLUDED.country_name;
 
 
 INSERT INTO dim_city (city_code, city_name, country_key)
@@ -11,7 +15,11 @@ SELECT
 	dc.country_key
 FROM ft_city c
 JOIN dim_country dc ON dc.country_code = c.country_code
-ON CONFLICT (city_code) DO NOTHING;
+ON CONFLICT (city_code) DO UPDATE
+	SET city_name   = EXCLUDED.city_name,
+	    country_key = EXCLUDED.country_key
+	WHERE (dim_city.city_name, dim_city.country_key)
+	      IS DISTINCT FROM (EXCLUDED.city_name, EXCLUDED.country_key);
 
 
 INSERT INTO dim_airport (iata_code, airport_name, city_key)
@@ -21,7 +29,11 @@ SELECT
 	dci.city_key
 FROM ft_airport a
 JOIN dim_city dci ON dci.city_code = a.city_code
-ON CONFLICT (iata_code) DO NOTHING;
+ON CONFLICT (iata_code) DO UPDATE
+	SET airport_name = EXCLUDED.airport_name,
+	    city_key     = EXCLUDED.city_key
+	WHERE (dim_airport.airport_name, dim_airport.city_key)
+	      IS DISTINCT FROM (EXCLUDED.airport_name, EXCLUDED.city_key);
 
 
 INSERT INTO dim_route (route_code, origin_airport_key, destination_airport_key, distance_km)
@@ -33,7 +45,12 @@ SELECT
 FROM ft_route r
 JOIN dim_airport dao ON dao.iata_code = r.origin_airport
 JOIN dim_airport dad ON dad.iata_code = r.destination_airport
-ON CONFLICT (route_code) DO NOTHING;
+ON CONFLICT (route_code) DO UPDATE
+	SET origin_airport_key      = EXCLUDED.origin_airport_key,
+	    destination_airport_key = EXCLUDED.destination_airport_key,
+	    distance_km             = EXCLUDED.distance_km
+	WHERE (dim_route.origin_airport_key, dim_route.destination_airport_key, dim_route.distance_km)
+	      IS DISTINCT FROM (EXCLUDED.origin_airport_key, EXCLUDED.destination_airport_key, EXCLUDED.distance_km);
 
 
 INSERT INTO dim_airline (iata_code, airline_name, country_key)
@@ -43,13 +60,24 @@ SELECT
 	dc.country_key
 FROM ft_airline a
 JOIN dim_country dc ON dc.country_code = a.country_code
-ON CONFLICT (iata_code) DO NOTHING;
+ON CONFLICT (iata_code) DO UPDATE
+	SET airline_name = EXCLUDED.airline_name,
+	    country_key  = EXCLUDED.country_key
+	WHERE (dim_airline.airline_name, dim_airline.country_key)
+	      IS DISTINCT FROM (EXCLUDED.airline_name, EXCLUDED.country_key);
 
 
 INSERT INTO dim_aircraft (tail_number, model, total_seats, economy_seats, business_seats)
 SELECT tail_number, model, total_seats, economy_seats, business_seats
 FROM ft_aircraft
-ON CONFLICT (tail_number) DO NOTHING;
+ON CONFLICT (tail_number) DO UPDATE
+	SET model          = EXCLUDED.model,
+	    total_seats    = EXCLUDED.total_seats,
+	    economy_seats  = EXCLUDED.economy_seats,
+	    business_seats = EXCLUDED.business_seats
+	WHERE (dim_aircraft.model, dim_aircraft.total_seats, dim_aircraft.economy_seats, dim_aircraft.business_seats)
+	      IS DISTINCT FROM (EXCLUDED.model, EXCLUDED.total_seats, EXCLUDED.economy_seats, EXCLUDED.business_seats);
+
 
 
 INSERT INTO dim_time (time_id, full_date, day_of_week, day_name, month_num, month_name, quarter, year, is_weekend)
@@ -67,6 +95,16 @@ FROM ft_flight
 ON CONFLICT (time_id) DO NOTHING;
 
 
+UPDATE dim_passenger dp
+SET valid_to   = CURRENT_DATE,
+    is_current = FALSE
+FROM ft_passenger p
+WHERE dp.passport_number = p.passport_number
+  AND dp.is_current = TRUE
+  AND (dp.first_name, dp.last_name, dp.nationality, dp.email, dp.phone)
+      IS DISTINCT FROM (p.first_name, p.last_name, p.nationality, p.email, p.phone);
+
+
 INSERT INTO dim_passenger (passport_number, first_name, last_name, nationality, email, phone, valid_from, valid_to, is_current)
 SELECT
 	p.passport_number,
@@ -82,7 +120,6 @@ FROM ft_passenger p
 WHERE NOT EXISTS (
 	SELECT 1 FROM dim_passenger dp
 	WHERE dp.passport_number = p.passport_number
-	AND dp.email = p.email
 	AND dp.is_current = TRUE
 );
 
@@ -90,7 +127,13 @@ WHERE NOT EXISTS (
 INSERT INTO dim_service (service_code, service_name, category, base_price)
 SELECT service_code, service_name, category, base_price
 FROM ft_service
-ON CONFLICT (service_code) DO NOTHING;
+ON CONFLICT (service_code) DO UPDATE
+	SET service_name = EXCLUDED.service_name,
+	    category     = EXCLUDED.category,
+	    base_price   = EXCLUDED.base_price
+	WHERE (dim_service.service_name, dim_service.category, dim_service.base_price)
+	      IS DISTINCT FROM (EXCLUDED.service_name, EXCLUDED.category, EXCLUDED.base_price);
+
 
 
 INSERT INTO fact_ticket_sales (
@@ -120,7 +163,28 @@ JOIN dim_passenger dp ON dp.passport_number = b.passenger_passport AND dp.is_cur
 JOIN dim_route dr ON dr.route_code = f.route_code
 JOIN dim_airline da ON da.iata_code = f.airline_code
 JOIN dim_aircraft dac ON dac.tail_number = f.tail_number
-ON CONFLICT (ticket_number) DO NOTHING;
+ON CONFLICT (ticket_number) DO UPDATE
+	SET time_id        = EXCLUDED.time_id,
+	    route_key      = EXCLUDED.route_key,
+	    airline_key    = EXCLUDED.airline_key,
+	    aircraft_key   = EXCLUDED.aircraft_key,
+	    flight_number  = EXCLUDED.flight_number,
+	    booking_ref    = EXCLUDED.booking_ref,
+	    cabin_class    = EXCLUDED.cabin_class,
+	    price          = EXCLUDED.price,
+	    baggage_kg     = EXCLUDED.baggage_kg,
+	    ticket_status  = EXCLUDED.ticket_status,
+	    payment_method = EXCLUDED.payment_method,
+	    payment_status = EXCLUDED.payment_status
+	WHERE (fact_ticket_sales.time_id, fact_ticket_sales.route_key, fact_ticket_sales.airline_key,
+	       fact_ticket_sales.aircraft_key, fact_ticket_sales.flight_number, fact_ticket_sales.booking_ref,
+	       fact_ticket_sales.cabin_class, fact_ticket_sales.price, fact_ticket_sales.baggage_kg,
+	       fact_ticket_sales.ticket_status, fact_ticket_sales.payment_method, fact_ticket_sales.payment_status)
+	      IS DISTINCT FROM
+	      (EXCLUDED.time_id, EXCLUDED.route_key, EXCLUDED.airline_key,
+	       EXCLUDED.aircraft_key, EXCLUDED.flight_number, EXCLUDED.booking_ref,
+	       EXCLUDED.cabin_class, EXCLUDED.price, EXCLUDED.baggage_kg,
+	       EXCLUDED.ticket_status, EXCLUDED.payment_method, EXCLUDED.payment_status);
 
 
 INSERT INTO fact_flight_performance (
@@ -146,7 +210,21 @@ LEFT JOIN ft_ticket t ON t.booking_ref = b.booking_ref AND t.ticket_status != 'C
 GROUP BY
 	f.scheduled_date, f.flight_number, f.status, f.delay_minutes,
 	dr.route_key, da.airline_key, dac.aircraft_key
-ON CONFLICT (flight_number, time_id) DO NOTHING;
+ON CONFLICT (flight_number, time_id) DO UPDATE
+	SET route_key     = EXCLUDED.route_key,
+	    airline_key   = EXCLUDED.airline_key,
+	    aircraft_key  = EXCLUDED.aircraft_key,
+	    status        = EXCLUDED.status,
+	    delay_minutes = EXCLUDED.delay_minutes,
+	    tickets_sold  = EXCLUDED.tickets_sold,
+	    total_revenue = EXCLUDED.total_revenue
+	WHERE (fact_flight_performance.route_key, fact_flight_performance.airline_key, fact_flight_performance.aircraft_key,
+	       fact_flight_performance.status, fact_flight_performance.delay_minutes,
+	       fact_flight_performance.tickets_sold, fact_flight_performance.total_revenue)
+	      IS DISTINCT FROM
+	      (EXCLUDED.route_key, EXCLUDED.airline_key, EXCLUDED.aircraft_key,
+	       EXCLUDED.status, EXCLUDED.delay_minutes,
+	       EXCLUDED.tickets_sold, EXCLUDED.total_revenue);
 
 
 INSERT INTO bridge_ticket_service (ticket_number, service_key, quantity, price_paid)
@@ -157,8 +235,26 @@ SELECT
     ts.price_paid
 FROM ft_ticket_service ts
 JOIN dim_service ds ON ds.service_code = ts.service_code
-ON CONFLICT (ticket_number, service_key) DO NOTHING;
+ON CONFLICT (ticket_number, service_key) DO UPDATE
+	SET quantity   = EXCLUDED.quantity,
+	    price_paid = EXCLUDED.price_paid
+	WHERE (bridge_ticket_service.quantity, bridge_ticket_service.price_paid)
+	      IS DISTINCT FROM (EXCLUDED.quantity, EXCLUDED.price_paid);
 
+
+
+UPDATE fact_ticket_service fsv
+SET time_id    = TO_CHAR(f.scheduled_date, 'YYYYMMDD')::INTEGER,
+    quantity   = bts.quantity,
+    price_paid = bts.price_paid
+FROM bridge_ticket_service bts
+JOIN ft_ticket t ON t.ticket_number = bts.ticket_number
+JOIN ft_booking b ON b.booking_ref = t.booking_ref
+JOIN ft_flight f ON f.flight_number = b.flight_number AND f.scheduled_date = b.scheduled_date
+WHERE fsv.ticket_number = bts.ticket_number
+  AND fsv.service_key = bts.service_key
+  AND (fsv.time_id, fsv.quantity, fsv.price_paid)
+      IS DISTINCT FROM (TO_CHAR(f.scheduled_date, 'YYYYMMDD')::INTEGER, bts.quantity, bts.price_paid);
 
 
 INSERT INTO fact_ticket_service (ticket_number, service_key, time_id, passenger_key, quantity, price_paid)
@@ -179,3 +275,5 @@ WHERE NOT EXISTS (
     WHERE fsv.ticket_number = bts.ticket_number
     AND fsv.service_key = bts.service_key
 );
+
+COMMIT;
