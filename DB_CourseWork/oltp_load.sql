@@ -27,11 +27,11 @@ WITH src AS (
     UNION ALL SELECT 'ticket',    n, c1, c2, c3, c4, c5, c6, c7, c8, NULL   FROM raw_ticket
     UNION ALL SELECT 'reference', n, c1, c2, c3, c4, c5, c6, NULL, NULL, NULL FROM raw_reference
 ),
-lbl AS (            -- строки-метки: только первая ячейка заполнена
+lbl AS (
     SELECT f, n, btrim(replace(c1, E'\uFEFF', '')) AS tbl
     FROM src
     WHERE c1 IS NOT NULL AND c2 IS NULL
-    UNION ALL       -- «виртуальная» метка в строке 0 = имя файла
+    UNION ALL 
     SELECT DISTINCT f, 0, f FROM src
 ),
 tagged AS (
@@ -39,11 +39,11 @@ tagged AS (
            (SELECT l.tbl FROM lbl l WHERE l.f = s.f AND l.n < s.n ORDER BY l.n DESC LIMIT 1) AS tbl,
            (SELECT l.n   FROM lbl l WHERE l.f = s.f AND l.n < s.n ORDER BY l.n DESC LIMIT 1) AS lbl_n
     FROM src s
-    WHERE s.c1 IS NOT NULL AND s.c2 IS NOT NULL      -- без пустых строк и меток
+    WHERE s.c1 IS NOT NULL AND s.c2 IS NOT NULL
 )
 SELECT tbl, n, c1, c2, c3, c4, c5, c6, c7, c8, c9
 FROM tagged
-WHERE n > lbl_n + 1;                                  -- без строки заголовка
+WHERE n > lbl_n + 1;
 
 
 CREATE TEMP TABLE load_log (tbl TEXT, inserted INT, updated INT) ON COMMIT DROP;
