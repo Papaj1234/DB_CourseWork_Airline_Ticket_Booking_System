@@ -152,3 +152,5 @@ ON CONFLICT (ticket_number, service_code) DO UPDATE
        IS DISTINCT FROM (EXCLUDED.quantity, EXCLUDED.price_paid);
 
 COMMIT;
+
+--\i C:/pgdata/oltp_load.sql
